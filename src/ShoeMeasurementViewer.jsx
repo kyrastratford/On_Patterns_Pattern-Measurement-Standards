@@ -5,7 +5,7 @@ import * as THREE from "three";
 import ShoeMeasurementPart from "./ShoeMeasurementPart";
 
 const MODEL_PATH =
-"https://raw.githubusercontent.com/kyrastratford/On_3D-Assets/main/shoe_measurements.glb";
+  "https://raw.githubusercontent.com/kyrastratford/On_3D-Assets/main/shoe_measurement standards.glb";
 
 const NON_CLICKABLE_KEYWORDS = ["SHOE"];
 
@@ -37,10 +37,10 @@ function ShoeModel({ activePart, setActivePart, hoveredPart, setHoveredPart, onP
       .filter((nodeName) => {
         const node = nodes[nodeName];
         if (!node || (!node.isMesh && !node.isLine && !node.isLineSegments)) return false;
-        const upper = nodeName.replace(/_/g, " ").trim().toUpperCase();
+        const upper = nodeName.replace(/_/g, " ").replace(/35MM/g, "3/5MM").trim().toUpperCase();
         return !NON_CLICKABLE_KEYWORDS.some((k) => upper.includes(k));
       })
-      .map((nodeName) => nodeName.replace(/_/g, " ").trim().toUpperCase());
+      .map((nodeName) => nodeName.replace(/_/g, " ").replace(/35MM/g, "3/5MM").trim().toUpperCase());
 
     const uniqueParts = Array.from(new Set(validParts));
     if (onPartsExtracted) {
@@ -117,9 +117,8 @@ export default function ShoeMeasurementViewer() {
           <CanvasErrorBoundary>
             <Canvas
               gl={{ toneMapping: THREE.NoToneMapping }}
-              /* Generous hit radius so clicking anywhere near a line triggers it */
               raycaster={{ params: { Line: { threshold: 0.08 } } }}
-              camera={{ position: [1.2, 0.8, 1.8], fov: 45 }}
+              camera={{ position: [0, 0, 2.2], fov: 45 }}
               onPointerMissed={() => setActivePart(null)}
             >
               <color attach="background" args={["#050508"]} />
@@ -128,8 +127,12 @@ export default function ShoeMeasurementViewer() {
               <directionalLight position={[10, 15, 10]} intensity={1.5} />
 
               <Suspense fallback={null}>
-              <Center scale={0.004}>
-                  <group rotation={[-Math.PI / 0.5, -Math.PI / 1.4, 0]}>
+                <Center scale={0.004}>
+                  {/* 🎯 ROTATED 180 DEGREES TO FACE THE OPPOSITE PROFILE */}
+                  <group
+                    scale={[-1, 1, 1]}
+                    rotation={[0, Math.PI, 0]}
+                  >
                     <ShoeModel
                       activePart={activePart}
                       setActivePart={setActivePart}
