@@ -5,7 +5,7 @@ import * as THREE from "three";
 import ShoeMeasurementPart from "./ShoeMeasurementPart";
 
 const MODEL_PATH =
-  "https://raw.githubusercontent.com/kyrastratford/On_3D-Assets/main/shoe_measurement standards.glb";
+  "https://raw.githubusercontent.com/kyrastratford/On_3D-Assets/main/cloud-6_measurements_v02.glb";
 
 const NON_CLICKABLE_KEYWORDS = ["SHOE"];
 

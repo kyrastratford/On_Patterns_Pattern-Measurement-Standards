@@ -1,13 +1,13 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 
 // 🎨 1. LINE COLOR CONFIGURATION
 const COLOR_CONFIG = {
-  default: "#e2fbaf",  // Pure White / Volt Default
+  default: "#e2fbaf",  // Volt Default
   hover: "#869caa",    // Electric Cyan
-  selected: "#977e92", // Bright Purple
+  selected: "#977E92", // High-visibility Pink / Magenta
 };
 
 const NON_CLICKABLE_KEYWORDS = ["SHOE"];
@@ -44,6 +44,18 @@ export default function ShoeMeasurementPart({
   const isSelected = activePart === displayTitle;
   const isHovered = hoveredPart === displayTitle && !isNonClickable;
 
+  // 🎯 2. ASSIGN REAL RAYCAST HANDLERS (Prevents R3F from wiping mesh.raycast)
+  const raycastHandler = useMemo(() => {
+    if (isNonClickable) {
+      // The shoe geometry gets a no-op so rays pass straight through to the lines
+      return () => {};
+    }
+    // Lines and measurement meshes retain their proper Three.js raycast methods
+    if (nodeType === "LineSegments") return THREE.LineSegments.prototype.raycast;
+    if (nodeType === "Line") return THREE.Line.prototype.raycast;
+    return THREE.Mesh.prototype.raycast;
+  }, [isNonClickable, nodeType]);
+
   const clonedMaterial = useMemo(() => {
     if (!material) {
       return new THREE.MeshStandardMaterial({
@@ -52,6 +64,7 @@ export default function ShoeMeasurementPart({
         metalness: 0.0,
         transparent: true,
         opacity: 1.0,
+        side: isNonClickable ? THREE.FrontSide : THREE.DoubleSide,
       });
     }
 
@@ -62,7 +75,7 @@ export default function ShoeMeasurementPart({
     const mats = Array.isArray(mat) ? mat : [mat];
     mats.forEach((m) => {
       m.transparent = true;
-      m.depthWrite = true;
+      m.side = isNonClickable ? THREE.FrontSide : THREE.DoubleSide;
 
       if (!isNonClickable && m.color) {
         m.color.set(COLOR_CONFIG.default);
@@ -72,13 +85,26 @@ export default function ShoeMeasurementPart({
     return mat;
   }, [material, isNonClickable]);
 
+  // Reset pointer cursor when component unmounts
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "auto";
+    };
+  }, []);
+
   useFrame(() => {
     if (!meshRef.current) return;
 
     let targetAlpha = 1.0;
 
     if (activePart) {
-      targetAlpha = isSelected ? 1.0 : isNonClickable ? 0.35 : 0.12;
+      if (isSelected) {
+        targetAlpha = 1.0;
+      } else if (isNonClickable) {
+        targetAlpha = 0.25; // Ghosted shoe silhouette
+      } else {
+        targetAlpha = 0.05; // Fade inactive lines so the active line stands out
+      }
     } else {
       targetAlpha = 1.0;
     }
@@ -86,8 +112,11 @@ export default function ShoeMeasurementPart({
     currentOpacity.current = THREE.MathUtils.lerp(
       currentOpacity.current,
       targetAlpha,
-      0.1
+      0.15
     );
+
+    // Layer ordering: Selected line (10) > Inactive lines (5) > Ghost shoe (1)
+    meshRef.current.renderOrder = isSelected ? 10 : isNonClickable ? 1 : 5;
 
     const mats = Array.isArray(meshRef.current.material)
       ? meshRef.current.material
@@ -98,6 +127,13 @@ export default function ShoeMeasurementPart({
 
       mat.opacity = currentOpacity.current;
       mat.visible = currentOpacity.current > 0.01;
+
+      // 🎯 DEPTH-SORTING FIX: Turn off depthWrite on the shoe while ghosted
+      if (isNonClickable) {
+        mat.depthWrite = !activePart;
+      } else {
+        mat.depthWrite = false;
+      }
 
       if (isSelected) {
         if ("color" in mat && mat.color) mat.color.set(COLOR_CONFIG.selected);
@@ -144,7 +180,7 @@ export default function ShoeMeasurementPart({
       scale={scale}
       geometry={geometry}
       material={clonedMaterial}
-      raycast={isNonClickable ? () => {} : THREE.Mesh.prototype.raycast}
+      raycast={raycastHandler}
       onClick={(e) => {
         e.stopPropagation();
         if (isNonClickable) return;
@@ -153,11 +189,13 @@ export default function ShoeMeasurementPart({
       onPointerOver={(e) => {
         e.stopPropagation();
         if (isNonClickable) return;
+        document.body.style.cursor = "pointer";
         if (!activePart) onHoverPart(displayTitle);
       }}
       onPointerOut={(e) => {
         e.stopPropagation();
         if (isNonClickable) return;
+        document.body.style.cursor = "auto";
         if (!activePart) onHoverPart(null);
       }}
     >
@@ -169,7 +207,6 @@ export default function ShoeMeasurementPart({
             pointerEvents: "auto",
           }}
         >
-          {/* 🎯 TITLE-ONLY LABEL CARD */}
           <aside
             className="glazed-glass-card"
             onClick={(e) => e.stopPropagation()}
